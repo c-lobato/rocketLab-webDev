@@ -4,11 +4,12 @@ from sqlalchemy.future import select
 
 from app.db.session import get_db
 from app.movies.models import DimMovie
+from app.movies.schemas import MovieResponse
 
 #router dos filmes 
 api_router = APIRouter()
 
-@api_router.get("/movies", tags=["Movies"])
+@api_router.get("/movies", response_model=list[MovieResponse], tags=["Movies"])
 async def list_movies(skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)):
     """
     Retorna uma lista paginada de filmes do catálogo.
