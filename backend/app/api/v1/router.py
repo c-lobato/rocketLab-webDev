@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
 
 from app.db.session import get_db
-from app.movies.models import DimMovie
+from app.movies.models import DimMovie, MovieReview
 from app.movies.schemas import MovieResponse
 
  
@@ -35,4 +36,15 @@ async def get_movie(movie_id: str, db: AsyncSession = Depends(get_db)):
     if not movie:
         raise HTTPException(status_code=404, detail="Filme não encontrado")
 
-    return movie
+    #calculo das medias de notas do filme
+    query_media = select(func.avg(MovieReview.nota)).where(MovieReview.sk_movie_id == movie_id)
+    result_media = await db.execute(query_media)
+    media = result_media.scalar()
+
+    #transforma o modelo sqlalchemy num dicionario e injeta a media
+    movie_data = {column.name: getattr(movie, column.name) for column in movie.__table__.columns}
+    
+    #arredonda pra uma casa decimal
+    movie_data["media_avaliacoes"] = round(media, 1) if media else None
+
+    return movie_data

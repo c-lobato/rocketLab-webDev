@@ -13,6 +13,7 @@ class MovieResponse(BaseModel):
     status_filme: Optional[str] = None
     url_poster: Optional[str] = None
     url_backdrop: Optional[str] = None
+    media_avaliacoes: Optional[float] = None
 
     #configuração crucial para que o Pydantic saiba ler objetos do SQLAlchemy
     model_config = ConfigDict(from_attributes=True)
