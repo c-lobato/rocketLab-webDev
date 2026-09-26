@@ -2,22 +2,28 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
+from typing import Optional
 
 from app.db.session import get_db
 from app.movies.models import DimMovie, MovieReview
 from app.movies.schemas import MovieResponse
 
- 
 api_router = APIRouter()
 
 #listagem dos filmes
 @api_router.get("/movies", response_model=list[MovieResponse], tags=["Movies"])
-async def list_movies(skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)):
-    """
-    Retorna uma lista paginada de filmes do catálogo.
-    """
+async def list_movies(
+    skip: int = 0, 
+    limit: int = 20, 
+    titulo: Optional[str] = None, 
+    db: AsyncSession = Depends(get_db)
+    ):
+
     #constrói a query com paginação (offset e limit)
     query = select(DimMovie).offset(skip).limit(limit)
+
+    if titulo:
+        query = query.where(DimMovie.titulo.icontains(titulo))
     
     #executa a query de forma assíncrona
     result = await db.execute(query)
