@@ -9,9 +9,13 @@ interface MovieDetail {
   duracao_minutos: number | null;
   sinopse: string | null;
   url_poster: string | null;
-  url_backdrop: string | null;
   media_avaliacoes: number | null;
-  nota_estrelas: number;
+  orcamento_usd: number | null;
+  receita_usd: number | null;
+  generos: string[];
+  elenco: string[];
+  diretores: string[];
+  produtoras: string[];
 }
 
 export default function MovieDetails() {
@@ -56,7 +60,6 @@ export default function MovieDetails() {
 
   return (
     <div className="min-h-screen bg-black text-white p-8 font-sans">
-      {/* Barra de navegação global imutável */}
       <Header />
 
       <main className="max-w-7xl mx-auto flex flex-col md:flex-row gap-12">
@@ -77,18 +80,55 @@ export default function MovieDetails() {
             {movie.titulo} <span className="text-zinc-500 text-3xl font-normal">({movie.ano_lancamento || 'N/A'})</span>
           </h1>
           
-          <div className="flex items-center gap-4 text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-6">
+          {/* Metadados básicos */}
+          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400 uppercase tracking-wider font-semibold mb-6">
             <span>Duração: {movie.duracao_minutos ? `${movie.duracao_minutos} min` : 'N/A'}</span>
             <span>•</span>
             <span className="text-yellow-500">Média: {movie.media_avaliacoes ?? 'Sem notas'} / 10</span>
           </div>
 
-          <div className="border-t border-zinc-900 pt-6 mt-2">
+          {/* Gêneros (Tags) */}
+          {movie.generos.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {movie.generos.map((genero, idx) => (
+                <span key={idx} className="bg-zinc-900 border border-zinc-800 text-zinc-300 text-xs px-3 py-1 rounded-full font-medium tracking-wide">
+                  {genero}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Sinopse */}
+          <div className="border-t border-zinc-900 pt-6 mb-6">
             <h3 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-3">Sinopse</h3>
             <p className="text-zinc-300 text-lg leading-relaxed max-w-3xl">
               {movie.sinopse || 'Este filme ainda não possui sinopse registada na base de dados.'}
             </p>
           </div>
+
+          {/* Equipe e Elenco (Dimensões e Bridge) */}
+          <div className="border-t border-zinc-900 pt-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {movie.diretores.length > 0 && (
+              <div>
+                <h4 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-2">Direção</h4>
+                <p className="text-zinc-200 text-sm font-medium">{movie.diretores.join(', ')}</p>
+              </div>
+            )}
+
+            {movie.produtoras.length > 0 && (
+              <div>
+                <h4 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-2">Produtoras</h4>
+                <p className="text-zinc-200 text-sm font-medium">{movie.produtoras.join(', ')}</p>
+              </div>
+            )}
+          </div>
+
+          {movie.elenco.length > 0 && (
+            <div className="border-t border-zinc-900 pt-6 mt-6">
+              <h4 className="text-zinc-500 text-xs uppercase tracking-widest font-bold mb-2">Elenco Principal</h4>
+              <p className="text-zinc-300 text-sm leading-relaxed">{movie.elenco.join(', ')}</p>
+            </div>
+          )}
         </div>
       </main>
     </div>
