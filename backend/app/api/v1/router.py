@@ -3,22 +3,33 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
 from typing import Optional
+from math import ceil
 
 from app.db.session import get_db
 from app.movies.models import DimMovie, MovieReview
-from app.movies.schemas import MovieResponse
+from app.movies.schemas import MovieResponse, PaginatedMovieResponse
 
 api_router = APIRouter()
 
 #listagem dos filmes
-@api_router.get("/movies", response_model=list[MovieResponse], tags=["Movies"])
+@api_router.get("/movies", response_model=PaginatedMovieResponse, tags=["Movies"])
 async def list_movies(
-    skip: int = 0, 
-    limit: int = 20, 
+    page: int = 1, 
     titulo: Optional[str] = None, 
     db: AsyncSession = Depends(get_db)
-    ):
+):
+    limit = 40
+    skip = (page - 1) * limit
 
+    # 1. Query para contar o total de filmes (necessário para o frontend saber o total de páginas)
+    count_stmt = select(func.count()).select_from(DimMovie)
+    if titulo:
+        count_stmt = count_stmt.where(DimMovie.titulo.icontains(titulo))
+    
+    total_items = await db.scalar(count_stmt)
+    total_pages = ceil(total_items / limit) if total_items else 1
+
+    # 2. Query principal com a nova ordenação cronológica e chave de desempate
     stmt = (
         select(
             DimMovie,
@@ -26,6 +37,10 @@ async def list_movies(
         )
         .outerjoin(MovieReview, DimMovie.sk_movie_id == MovieReview.sk_movie_id)
         .group_by(DimMovie.sk_movie_id)
+        .order_by(
+            DimMovie.ano_lancamento.desc().nulls_last(), # Lançamentos mais recentes primeiro
+            DimMovie.sk_movie_id.asc()                   # Desempate determinístico (evita filmes repetidos na paginação)
+        )
         .offset(skip)
         .limit(limit)
     )
@@ -38,23 +53,27 @@ async def list_movies(
     
     movies_list = []
     for movie, media in rows:
-        # Pega os campos do modelo SQLAlchemy
+        # Transforma os dados em dicionário
         movie_data = {column.name: getattr(movie, column.name) for column in movie.__table__.columns}
         
-        # 1. Injeta a média (ou null se não tiver)
         media_val = round(media, 1) if media else None
         movie_data["media_avaliacoes"] = media_val
         
-        # 2. Calcula as estrelas (0-5)
+        # Calcula as estrelas (0-5)
         if media_val:
             movie_data["nota_estrelas"] = round((media_val / 2.0) * 2) / 2
         else:
             movie_data["nota_estrelas"] = 0.0
             
-        # Instancia o Pydantic explicitamente para garantir que o FastAPI leia tudo!
         movies_list.append(MovieResponse(**movie_data))
     
-    return movies_list
+    # Retorna o envelope com os metadados da paginação
+    return {
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "current_page": page,
+        "items": movies_list
+    }
 
 #busca dos filmes pelo id (nao está relacionado à barra de pesquisa)
 @api_router.get("/{movie_id}", response_model=MovieResponse, tags=["Movies"])

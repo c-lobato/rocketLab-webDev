@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict
-from typing import Optional
+from typing import Optional, List
 
 class MovieResponse(BaseModel):
     sk_movie_id: str
@@ -13,7 +13,12 @@ class MovieResponse(BaseModel):
     url_backdrop: Optional[str] = None
     media_avaliacoes: Optional[float] = None
     
-    # Campo normal, obrigatório, sem mágica
     nota_estrelas: float 
 
     model_config = ConfigDict(from_attributes=True)
+
+class PaginatedMovieResponse(BaseModel):
+    total_items: int
+    total_pages: int
+    current_page: int
+    items: List[MovieResponse]

@@ -12,6 +12,15 @@ from app.db.session import engine
 configure_logging()
 settings = get_settings()
 
+app = FastAPI(title="Rocket Movies API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Permite acesso de qualquer frontend (incluindo o localhost:5173)
+    allow_credentials=True,
+    allow_methods=["*"], # Permite todos os métodos (GET, POST, etc)
+    allow_headers=["*"], # Permite todos os cabeçalhos
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
