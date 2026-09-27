@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import Header from '../components/Header';
 
 interface MovieDetail {
   sk_movie_id: string;
@@ -44,23 +45,19 @@ export default function MovieDetails() {
 
   if (!movie) {
     return (
-      <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center font-sans">
-        <p className="text-xl text-zinc-400 mb-4">Filme não encontrado.</p>
-        <Link to="/" className="text-yellow-500 hover:underline">← Voltar ao Catálogo</Link>
+      <div className="min-h-screen bg-black text-white p-8 font-sans">
+        <Header />
+        <div className="text-center py-20">
+          <p className="text-xl text-zinc-400 mb-4">Filme não encontrado.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-black text-white p-8 font-sans">
-      <header className="mb-10 max-w-7xl mx-auto flex items-center justify-between border-b border-zinc-800 pb-5">
-        <Link to="/" className="text-3xl font-bold text-yellow-500 tracking-wider uppercase hover:text-yellow-400 transition-colors">
-          Rocket Movies
-        </Link>
-        <Link to="/" className="text-sm font-semibold text-zinc-400 hover:text-white uppercase tracking-widest transition-colors">
-          ← Voltar ao Catálogo
-        </Link>
-      </header>
+      {/* Barra de navegação global imutável */}
+      <Header />
 
       <main className="max-w-7xl mx-auto flex flex-col md:flex-row gap-12">
         {/* Poster */}

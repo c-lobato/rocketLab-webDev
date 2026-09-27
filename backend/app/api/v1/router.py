@@ -98,3 +98,41 @@ async def get_movie(movie_id: str, db: AsyncSession = Depends(get_db)):
     movie_data["media_avaliacoes"] = round(media, 1) if media else None
 
     return movie_data
+
+@api_router.get("/movies/{sk_movie_id}", response_model=MovieResponse, tags=["Movies"])
+async def get_movie_detail(
+    sk_movie_id: str, 
+    db: AsyncSession = Depends(get_db)
+):
+    # Query para buscar um filme específico pelo seu ID substituto (sk_movie_id)
+    stmt = (
+        select(
+            DimMovie,
+            func.coalesce(func.avg(MovieReview.nota), 0.0).label("media_avaliacoes")
+        )
+        .outerjoin(MovieReview, DimMovie.sk_movie_id == MovieReview.sk_movie_id)
+        .where(DimMovie.sk_movie_id == sk_movie_id)
+        .group_by(DimMovie.sk_movie_id)
+    )
+    
+    result = await db.execute(stmt)
+    row = result.first()
+    
+    if not row:
+        raise HTTPException(status_code=404, detail="Filme não encontrado")
+        
+    movie, media = row
+    
+    # Transforma os dados do modelo SQLAlchemy num dicionário
+    movie_data = {column.name: getattr(movie, column.name) for column in movie.__table__.columns}
+    
+    media_val = round(media, 1) if media else None
+    movie_data["media_avaliacoes"] = media_val
+    
+    # Converte a média para o sistema de 0 a 5 estrelas
+    if media_val:
+        movie_data["nota_estrelas"] = round((media_val / 2.0) * 2) / 2
+    else:
+        movie_data["nota_estrelas"] = 0.0
+        
+    return MovieResponse(**movie_data)
