@@ -6,8 +6,8 @@ from typing import Optional
 from math import ceil
 
 from app.db.session import get_db
-from app.movies.models import DimMovie, MovieReview
-from app.movies.schemas import MovieResponse, PaginatedMovieResponse
+from app.movies.models import DimMovie, MovieReview, FactMoviePerformance, DimGenre, DimCompany, bridge_movie_company, bridge_movie_person, DimPerson, bridge_movie_genre
+from app.movies.schemas import MovieResponse, PaginatedMovieResponse, MovieDetailResponse
 
 api_router = APIRouter()
 
@@ -99,20 +99,29 @@ async def get_movie(movie_id: str, db: AsyncSession = Depends(get_db)):
 
     return movie_data
 
-@api_router.get("/movies/{sk_movie_id}", response_model=MovieResponse, tags=["Movies"])
+@api_router.get("/movies/{sk_movie_id}", response_model=MovieDetailResponse, tags=["Movies"])
 async def get_movie_detail(
     sk_movie_id: str, 
     db: AsyncSession = Depends(get_db)
 ):
-    # Query para buscar um filme específico pelo seu ID substituto (sk_movie_id)
+    # 1. Busca o filme principal e a média de avaliações
     stmt = (
         select(
             DimMovie,
-            func.coalesce(func.avg(MovieReview.nota), 0.0).label("media_avaliacoes")
+            func.coalesce(func.avg(MovieReview.nota), 0.0).label("media_avaliacoes"),
+            FactMoviePerformance.orcamento_usd,
+            FactMoviePerformance.receita_usd,
+            FactMoviePerformance.lucro_usd
         )
         .outerjoin(MovieReview, DimMovie.sk_movie_id == MovieReview.sk_movie_id)
+        .outerjoin(FactMoviePerformance, DimMovie.sk_movie_id == FactMoviePerformance.sk_movie_id)
         .where(DimMovie.sk_movie_id == sk_movie_id)
-        .group_by(DimMovie.sk_movie_id)
+        .group_by(
+            DimMovie.sk_movie_id, 
+            FactMoviePerformance.orcamento_usd, 
+            FactMoviePerformance.receita_usd, 
+            FactMoviePerformance.lucro_usd
+        )
     )
     
     result = await db.execute(stmt)
@@ -121,18 +130,53 @@ async def get_movie_detail(
     if not row:
         raise HTTPException(status_code=404, detail="Filme não encontrado")
         
-    movie, media = row
+    movie, media, orcamento, receita, lucro = row
     
-    # Transforma os dados do modelo SQLAlchemy num dicionário
     movie_data = {column.name: getattr(movie, column.name) for column in movie.__table__.columns}
     
     media_val = round(media, 1) if media else None
     movie_data["media_avaliacoes"] = media_val
+    movie_data["nota_estrelas"] = round((media_val / 2.0) * 2) / 2 if media_val else 0.0
     
-    # Converte a média para o sistema de 0 a 5 estrelas
-    if media_val:
-        movie_data["nota_estrelas"] = round((media_val / 2.0) * 2) / 2
-    else:
-        movie_data["nota_estrelas"] = 0.0
-        
-    return MovieResponse(**movie_data)
+    movie_data["orcamento_usd"] = orcamento
+    movie_data["receita_usd"] = receita
+    movie_data["lucro_usd"] = lucro
+
+    # 2. Buscar Gêneros via Bridge Table
+    stmt_genres = (
+        select(DimGenre.nome_genero)
+        .join(bridge_movie_genre, DimGenre.sk_genre_id == bridge_movie_genre.sk_genre_id)
+        .where(bridge_movie_genre.sk_movie_id == sk_movie_id)
+    )
+    genres_res = await db.execute(stmt_genres)
+    movie_data["generos"] = [g[0] for g in genres_res.all()]
+
+    # 3. Buscar Pessoas (Elenco e Diretores) via Bridge Table
+    stmt_people = (
+        select(DimPerson.nome_pessoa, DimPerson.tipo_pessoa)
+        .join(bridge_movie_person, DimPerson.sk_person_id == bridge_movie_person.sk_person_id)
+        .where(bridge_movie_person.sk_movie_id == sk_movie_id)
+    )
+    people_res = await db.execute(stmt_people)
+    
+    elenco = []
+    diretores = []
+    for nome, tipo in people_res.all():
+        if tipo == 'Ator':
+            elenco.append(nome)
+        elif tipo == 'Diretor':
+            diretores.append(nome)
+            
+    movie_data["elenco"] = elenco[:10]  # Limita aos principais
+    movie_data["diretores"] = diretores
+
+    # 4. Buscar Produtoras via Bridge Table
+    stmt_companies = (
+        select(DimCompany.nome_produtora)
+        .join(bridge_movie_company, DimCompany.sk_company_id == bridge_movie_company.sk_company_id)
+        .where(bridge_movie_company.sk_movie_id == sk_movie_id)
+    )
+    comp_res = await db.execute(stmt_companies)
+    movie_data["produtoras"] = [c[0] for c in comp_res.all()]
+
+    return MovieDetailResponse(**movie_data)

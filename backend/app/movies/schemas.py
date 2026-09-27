@@ -22,3 +22,14 @@ class PaginatedMovieResponse(BaseModel):
     total_pages: int
     current_page: int
     items: List[MovieResponse]
+
+class MovieDetailResponse(MovieResponse):
+    orcamento_usd: Optional[float] = None
+    receita_usd: Optional[float] = None
+    lucro_usd: Optional[float] = None
+    generos: List[str] = []
+    elenco: List[str] = []
+    diretores: List[str] = []
+    produtoras: List[str] = []
+
+    model_config = ConfigDict(from_attributes=True)
