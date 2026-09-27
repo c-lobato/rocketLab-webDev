@@ -1,8 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 
-#esta classe é responsável por separar e organizar as saídas e campos que serão expostos na Swagger UI 
-
 class MovieResponse(BaseModel):
     sk_movie_id: str
     id_filme: str
@@ -14,6 +12,8 @@ class MovieResponse(BaseModel):
     url_poster: Optional[str] = None
     url_backdrop: Optional[str] = None
     media_avaliacoes: Optional[float] = None
+    
+    # Campo normal, obrigatório, sem mágica
+    nota_estrelas: float 
 
-    #configuração crucial para que o Pydantic saiba ler objetos do SQLAlchemy
     model_config = ConfigDict(from_attributes=True)

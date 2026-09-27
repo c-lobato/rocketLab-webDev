@@ -19,17 +19,42 @@ async def list_movies(
     db: AsyncSession = Depends(get_db)
     ):
 
-    #constrói a query com paginação (offset e limit)
-    query = select(DimMovie).offset(skip).limit(limit)
+    stmt = (
+        select(
+            DimMovie,
+            func.coalesce(func.avg(MovieReview.nota), 0.0).label("media_avaliacoes")
+        )
+        .outerjoin(MovieReview, DimMovie.sk_movie_id == MovieReview.sk_movie_id)
+        .group_by(DimMovie.sk_movie_id)
+        .offset(skip)
+        .limit(limit)
+    )
 
     if titulo:
-        query = query.where(DimMovie.titulo.icontains(titulo))
+        stmt = stmt.where(DimMovie.titulo.icontains(titulo))
     
-    #executa a query de forma assíncrona
-    result = await db.execute(query)
-    movies = result.scalars().all()   #retorna a lista de todos os registros
+    result = await db.execute(stmt)
+    rows = result.all()
     
-    return movies
+    movies_list = []
+    for movie, media in rows:
+        # Pega os campos do modelo SQLAlchemy
+        movie_data = {column.name: getattr(movie, column.name) for column in movie.__table__.columns}
+        
+        # 1. Injeta a média (ou null se não tiver)
+        media_val = round(media, 1) if media else None
+        movie_data["media_avaliacoes"] = media_val
+        
+        # 2. Calcula as estrelas (0-5)
+        if media_val:
+            movie_data["nota_estrelas"] = round((media_val / 2.0) * 2) / 2
+        else:
+            movie_data["nota_estrelas"] = 0.0
+            
+        # Instancia o Pydantic explicitamente para garantir que o FastAPI leia tudo!
+        movies_list.append(MovieResponse(**movie_data))
+    
+    return movies_list
 
 #busca dos filmes pelo id (nao está relacionado à barra de pesquisa)
 @api_router.get("/{movie_id}", response_model=MovieResponse, tags=["Movies"])
