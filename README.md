@@ -27,10 +27,10 @@ O projeto está dividido em duas partes: a API (Backend) e a Interface (Frontend
 2. Crie e ative um ambiente virtual Python:
    python -m venv .venv
 
-   # No Windows (PowerShell):
+   No Windows (PowerShell):
    .venv\Scripts\Activate
 
-   # No Mac/Linux:
+   No Mac/Linux:
    source .venv/bin/activate
 
 3. Instale as dependências necessárias:
