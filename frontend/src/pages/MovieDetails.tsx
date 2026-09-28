@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
 
 interface Review {
@@ -26,6 +26,7 @@ interface MovieDetail {
 
 export default function MovieDetails() {
   const { id_do_filme } = useParams();
+  const navigate = useNavigate();
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -56,6 +57,24 @@ export default function MovieDetails() {
   useEffect(() => {
     fetchMovieDetails();
   }, [id_do_filme]);
+
+  const handleDelete = () => {
+    const confirmacao = window.confirm("Tem a certeza que deseja eliminar este filme? Esta ação não pode ser desfeita.");
+    if (!confirmacao) return;
+
+    fetch(`http://localhost:8000/api/v1/movies/${id_do_filme}`, {
+      method: 'DELETE',
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("Erro ao eliminar filme");
+        // Após eliminar com sucesso, volta automaticamente para o catálogo
+        navigate('/');
+      })
+      .catch(err => {
+        console.error("Erro na exclusão:", err);
+        alert("Ocorreu um erro ao tentar eliminar o filme.");
+      });
+  };
 
   const handleSubmitReview = (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,14 +174,35 @@ export default function MovieDetails() {
       <Header />
 
       <main className="max-w-7xl mx-auto flex flex-col md:flex-row gap-12">
-        {/* Poster */}
+        {/* Lado Esquerdo: Poster e Botões de Ação */}
         <div className="w-full md:w-1/3 lg:w-1/4 flex-shrink-0">
-          <div className="aspect-[2/3] bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center shadow-2xl overflow-hidden sticky top-8">
-            {movie.url_poster ? (
-              <img src={movie.url_poster} alt={movie.titulo} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-6xl opacity-20">🎬</span>
-            )}
+          <div className="sticky top-8 flex flex-col gap-4">
+            
+            <div className="aspect-[2/3] bg-zinc-900 rounded border border-zinc-800 flex items-center justify-center shadow-2xl overflow-hidden">
+              {movie.url_poster ? (
+                <img src={movie.url_poster} alt={movie.titulo} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-6xl opacity-20">🎬</span>
+              )}
+            </div>
+
+            {/* Painel de Administração (Editar e Excluir) */}
+            <div className="flex gap-2">
+              <button 
+                onClick={() => console.log("A preparar a edição...")}
+                className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-black text-xs font-bold uppercase tracking-widest py-3 rounded transition-colors cursor-pointer shadow-lg"
+              >
+                Editar
+              </button>
+              
+              <button 
+                onClick={handleDelete}
+                className="flex-1 bg-red-900/80 hover:bg-red-600 text-white text-xs font-bold uppercase tracking-widest py-3 rounded transition-colors border border-red-800 hover:border-red-500 cursor-pointer shadow-lg"
+              >
+                Excluir
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -354,7 +394,7 @@ export default function MovieDetails() {
                   required
                   rows={6}
                   maxLength={4000}
-                  placeholder="Escreva seus pensamentos sobre o filme..."
+                  placeholder="Escreva sua resenha..."
                   value={comentario}
                   onChange={(e) => setComentario(e.target.value)}
                   className="w-full bg-zinc-950 border border-zinc-800 rounded p-4 text-sm text-zinc-200 focus:outline-none focus:border-yellow-500 focus:ring-1 focus:ring-yellow-500 transition-all placeholder-zinc-600 resize-none font-sans leading-relaxed"
@@ -375,7 +415,7 @@ export default function MovieDetails() {
                   disabled={submitting}
                   className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-xs font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-colors cursor-pointer shadow-lg"
                 >
-                  {submitting ? 'A salvar...' : 'Salvar Resenha'}
+                  {submitting ? 'Salvando...' : 'Salvar Resenha'}
                 </button>
               </div>
 
