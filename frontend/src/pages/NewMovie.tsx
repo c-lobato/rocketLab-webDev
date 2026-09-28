@@ -86,7 +86,7 @@ export default function NewMovie() {
             <span className="text-4xl">✓</span>
           </div>
           <h2 className="text-3xl font-bold text-zinc-100 mb-2">Filme Cadastrado!</h2>
-          <p className="text-zinc-400">A redirecionar para o catálogo...</p>
+          <p className="text-zinc-400">Voltando para o catálogo...</p>
         </div>
       </div>
     );

@@ -21,7 +21,6 @@ export default function Header() {
   return (
     <header className="mb-10 max-w-7xl mx-auto flex items-center justify-between border-b border-zinc-800 pb-5 font-sans">
       <div className="flex items-center gap-8">
-        {/* Título sem o comportamento de botão (melhoria de UX) */}
         <h1 className="text-3xl font-bold text-yellow-500 tracking-wider uppercase">
           Rocket Movies
         </h1>
@@ -36,7 +35,6 @@ export default function Header() {
             Catálogo
           </button>
           
-          {/* Novo botão de cadastro com o mesmo estilo e highlight condicional */}
           <Link 
             to="/cadastrar"
             className={`text-sm font-semibold uppercase tracking-widest transition-colors cursor-pointer ${

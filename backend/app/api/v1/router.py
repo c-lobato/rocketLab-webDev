@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -195,12 +195,62 @@ async def get_movie_detail(
 
 
 @api_router.post("/movies", status_code=201, tags=["Movies"])
+async def create_movie(
+    movie_in: MovieCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Criar o registro principal do filme
+    new_movie = DimMovie(
+        id_filme=f"user_{uuid.uuid4().hex[:8]}",
+        titulo=movie_in.titulo,
+        ano_lancamento=movie_in.ano_lancamento,
+        sinopse=movie_in.sinopse,
+        url_poster=movie_in.url_poster
+    )
+    
+    db.add(new_movie)
+    await db.flush()
+
+    # 2. Processar Gêneros
+    for nome_genero in movie_in.generos:
+        gen_res = await db.execute(select(DimGenre).where(DimGenre.nome_genero == nome_genero))
+        genre = gen_res.scalar_one_or_none()
+        if not genre:
+            genre = DimGenre(nome_genero=nome_genero)
+            db.add(genre)
+            await db.flush()
+        await db.execute(insert(bridge_movie_genre).values(sk_movie_id=new_movie.sk_movie_id, sk_genre_id=genre.sk_genre_id))
+
+    # 3. Processar Diretores
+    for nome_diretor in movie_in.diretores:
+        dir_res = await db.execute(select(DimPerson).where(DimPerson.nome_pessoa == nome_diretor, DimPerson.tipo_pessoa == 'Diretor'))
+        diretor = dir_res.scalar_one_or_none()
+        if not diretor:
+            diretor = DimPerson(nome_pessoa=nome_diretor, tipo_pessoa='Diretor')
+            db.add(diretor)
+            await db.flush()
+        await db.execute(insert(bridge_movie_person).values(sk_movie_id=new_movie.sk_movie_id, sk_person_id=diretor.sk_person_id))
+
+    # 4. Processar Atores
+    for nome_ator in movie_in.elenco:
+        ator_res = await db.execute(select(DimPerson).where(DimPerson.nome_pessoa == nome_ator, DimPerson.tipo_pessoa == 'Ator'))
+        ator = ator_res.scalar_one_or_none()
+        if not ator:
+            ator = DimPerson(nome_pessoa=nome_ator, tipo_pessoa='Ator')
+            db.add(ator)
+            await db.flush()
+        await db.execute(insert(bridge_movie_person).values(sk_movie_id=new_movie.sk_movie_id, sk_person_id=ator.sk_person_id))
+
+    await db.commit()
+    return {"mensagem": f"Filme '{new_movie.titulo}' criado com sucesso!"}
+
+
+@api_router.post("/movies/{sk_movie_id}/reviews", response_model=Review, tags=["Movies"])
 async def create_movie_review(
     sk_movie_id: str,
     review_in: ReviewCreate,
     db: AsyncSession = Depends(get_db)
 ):
-    # Verifica se o filme existe
     movie_res = await db.execute(select(DimMovie).where(DimMovie.sk_movie_id == sk_movie_id))
     if not movie_res.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Filme não encontrado")
@@ -217,69 +267,18 @@ async def create_movie_review(
     
     return Review(nome=new_review.nome, nota=new_review.nota, comentario=new_review.comentario)
 
-@api_router.post("/movies", status_code=201, tags=["Movies"])
-async def create_movie(
-    movie_in: MovieCreate,
+@api_router.delete("/movies/{sk_movie_id}", status_code=204, tags=["Movies"])
+async def delete_movie(
+    sk_movie_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Criar o registro principal do filme
-    new_movie = DimMovie(
-        id_filme=f"user_{uuid.uuid4().hex[:8]}", # Gera um ID único exigido pelo modelo
-        titulo=movie_in.titulo,
-        ano_lancamento=movie_in.ano_lancamento,
-        sinopse=movie_in.sinopse,
-        url_poster=movie_in.url_poster
-    )
+    res = await db.execute(select(DimMovie).where(DimMovie.sk_movie_id == sk_movie_id))
+    movie = res.scalar_one_or_none()
     
-    db.add(new_movie)
-    await db.flush() #salvamento previo para gerar o sk_movie_id
-
-    # 2. Processar Gêneros e ligar na Bridge
-    for nome_genero in movie_in.generos:
-        # Busca se o gênero já existe para não duplicar
-        gen_res = await db.execute(select(DimGenre).where(DimGenre.nome_genero == nome_genero))
-        genre = gen_res.scalar_one_or_none()
-        
-        if not genre:
-            genre = DimGenre(nome_genero=nome_genero)
-            db.add(genre)
-            await db.flush()
-            
-        await db.execute(
-            insert(bridge_movie_genre).values(sk_movie_id=new_movie.sk_movie_id, sk_genre_id=genre.sk_genre_id)
-        )
-
-    # 3. Processar Diretores e ligar na Bridge
-    for nome_diretor in movie_in.diretores:
-        dir_res = await db.execute(
-            select(DimPerson).where(DimPerson.nome_pessoa == nome_diretor, DimPerson.tipo_pessoa == 'Diretor')
-        )
-        diretor = dir_res.scalar_one_or_none()
-        
-        if not diretor:
-            diretor = DimPerson(nome_pessoa=nome_diretor, tipo_pessoa='Diretor')
-            db.add(diretor)
-            await db.flush()
-            
-        await db.execute(
-            insert(bridge_movie_person).values(sk_movie_id=new_movie.sk_movie_id, sk_person_id=diretor.sk_person_id)
-        )
-
-    for nome_ator in movie_in.elenco:
-        ator_res = await db.execute(
-            select(DimPerson).where(DimPerson.nome_pessoa == nome_ator, DimPerson.tipo_pessoa == 'Ator')
-        )
-        ator = ator_res.scalar_one_or_none()
-        
-        if not ator:
-            ator = DimPerson(nome_pessoa=nome_ator, tipo_pessoa='Ator')
-            db.add(ator)
-            await db.flush()
-            
-        await db.execute(
-            insert(bridge_movie_person).values(sk_movie_id=new_movie.sk_movie_id, sk_person_id=ator.sk_person_id)
-        )
-
+    if not movie:
+        raise HTTPException(status_code=404, detail="Filme não encontrado")
+    
+    await db.delete(movie)
     await db.commit()
     
-    return {"mensagem": f"Filme '{new_movie.titulo}' criado com sucesso!"}
+    return Response(status_code=204)
