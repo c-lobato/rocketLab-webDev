@@ -8,7 +8,7 @@ import uuid
 from sqlalchemy import insert
 
 from app.db.session import get_db
-from app.movies.models import DimMovie, MovieReview, FactMoviePerformance, DimGenre, DimCompany, bridge_movie_company, bridge_movie_person, DimPerson, bridge_movie_genre
+from app.movies.models import DimMovie, MovieReview, FactMoviePerformance, DimGenre, DimCompany, DimPerson, bridge_movie_company, bridge_movie_person, bridge_movie_genre
 from app.movies.schemas import MovieResponse, PaginatedMovieResponse, MovieDetailResponse, ReviewCreate, Review, MovieCreate
 
 api_router = APIRouter()
@@ -194,7 +194,7 @@ async def get_movie_detail(
     return MovieDetailResponse(**movie_data)
 
 
-@api_router.post("/movies/{sk_movie_id}/reviews", response_model=Review, tags=["Movies"])
+@api_router.post("/movies", status_code=201, tags=["Movies"])
 async def create_movie_review(
     sk_movie_id: str,
     review_in: ReviewCreate,
@@ -217,7 +217,7 @@ async def create_movie_review(
     
     return Review(nome=new_review.nome, nota=new_review.nota, comentario=new_review.comentario)
 
-@api_router.post("/movies", response_model=MovieResponse, status_code=201, tags=["Movies"])
+@api_router.post("/movies", status_code=201, tags=["Movies"])
 async def create_movie(
     movie_in: MovieCreate,
     db: AsyncSession = Depends(get_db)
@@ -279,12 +279,7 @@ async def create_movie(
         await db.execute(
             insert(bridge_movie_person).values(sk_movie_id=new_movie.sk_movie_id, sk_person_id=ator.sk_person_id)
         )
-        
+
     await db.commit()
     
-    return MovieResponse(
-        sk_movie_id=new_movie.sk_movie_id,
-        titulo=new_movie.titulo,
-        ano_lancamento=new_movie.ano_lancamento,
-        url_poster=new_movie.url_poster
-    )
+    return {"mensagem": f"Filme '{new_movie.titulo}' criado com sucesso!"}

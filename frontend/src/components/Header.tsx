@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 export default function Header() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchInput, setSearchInput] = useState('');
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -20,24 +21,34 @@ export default function Header() {
   return (
     <header className="mb-10 max-w-7xl mx-auto flex items-center justify-between border-b border-zinc-800 pb-5 font-sans">
       <div className="flex items-center gap-8">
-        <h1 
-          onClick={handleVoltarCatalogo}
-          className="text-3xl font-bold text-yellow-500 tracking-wider uppercase cursor-pointer hover:text-yellow-400 transition-colors"
-        >
+        {/* Título sem o comportamento de botão (melhoria de UX) */}
+        <h1 className="text-3xl font-bold text-yellow-500 tracking-wider uppercase">
           Rocket Movies
         </h1>
         
-        <nav>
+        <nav className="flex items-center gap-6">
           <button 
             onClick={handleVoltarCatalogo}
-            className="text-sm font-semibold text-zinc-400 hover:text-white uppercase tracking-widest transition-colors cursor-pointer"
+            className={`text-sm font-semibold uppercase tracking-widest transition-colors cursor-pointer ${
+              location.pathname === '/' ? 'text-yellow-500' : 'text-zinc-400 hover:text-white'
+            }`}
           >
             Catálogo
           </button>
+          
+          {/* Novo botão de cadastro com o mesmo estilo e highlight condicional */}
+          <Link 
+            to="/cadastrar"
+            className={`text-sm font-semibold uppercase tracking-widest transition-colors cursor-pointer ${
+              location.pathname === '/cadastrar' ? 'text-yellow-500' : 'text-zinc-400 hover:text-white'
+            }`}
+          >
+            Cadastrar
+          </Link>
         </nav>
       </div>
       
-      {/* Barra de pesquisa global */}
+      {/* Barra de pesquisa global original */}
       <div className="hidden sm:block">
         <input 
           type="text" 
