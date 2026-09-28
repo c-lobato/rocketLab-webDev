@@ -23,6 +23,25 @@ class PaginatedMovieResponse(BaseModel):
     current_page: int
     items: List[MovieResponse]
 
+class Review(BaseModel):
+    nome: str
+    nota: float
+    comentario: str
+
+class ReviewCreate(BaseModel):
+    nome: str
+    nota: float
+    comentario: str
+
+class MovieCreate(BaseModel):
+    titulo: str
+    ano_lancamento: int
+    sinopse: Optional[str] = None
+    generos: List[str] = []
+    diretores: List[str] = []
+    url_poster: Optional[str] = None
+    elenco: List[str] = []
+
 class MovieDetailResponse(MovieResponse):
     orcamento_usd: Optional[float] = None
     receita_usd: Optional[float] = None
@@ -31,5 +50,6 @@ class MovieDetailResponse(MovieResponse):
     elenco: List[str] = []
     diretores: List[str] = []
     produtoras: List[str] = []
+    reviews: List[Review] = []
 
     model_config = ConfigDict(from_attributes=True)
