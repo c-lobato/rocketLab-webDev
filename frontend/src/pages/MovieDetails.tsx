@@ -189,7 +189,7 @@ export default function MovieDetails() {
             {/* Painel de Administração (Editar e Excluir) */}
             <div className="flex gap-2">
               <button 
-                onClick={() => console.log("A preparar a edição...")}
+                onClick={() => navigate(`/editar/${id_do_filme}`)}
                 className="flex-1 bg-yellow-600 hover:bg-yellow-500 text-black text-xs font-bold uppercase tracking-widest py-3 rounded transition-colors cursor-pointer shadow-lg"
               >
                 Editar

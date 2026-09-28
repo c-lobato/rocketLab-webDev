@@ -5,7 +5,7 @@ from sqlalchemy import func
 from typing import Optional
 from math import ceil
 import uuid
-from sqlalchemy import insert
+from sqlalchemy import select, insert, desc, delete
 
 from app.db.session import get_db
 from app.movies.models import DimMovie, MovieReview, FactMoviePerformance, DimGenre, DimCompany, DimPerson, bridge_movie_company, bridge_movie_person, bridge_movie_genre
@@ -282,3 +282,62 @@ async def delete_movie(
     await db.commit()
     
     return Response(status_code=204)
+
+@api_router.put("/movies/{sk_movie_id}", status_code=200, tags=["Movies"])
+async def update_movie(
+    sk_movie_id: str,
+    movie_in: MovieCreate,
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Buscar o filme existente
+    res = await db.execute(select(DimMovie).where(DimMovie.sk_movie_id == sk_movie_id))
+    movie = res.scalar_one_or_none()
+    
+    if not movie:
+        raise HTTPException(status_code=404, detail="Filme não encontrado")
+    
+    # 2. Atualizar os dados principais na tabela de filmes
+    movie.titulo = movie_in.titulo
+    movie.ano_lancamento = movie_in.ano_lancamento
+    movie.sinopse = movie_in.sinopse
+    movie.url_poster = movie_in.url_poster
+    
+    # 3. Limpar as listas antigas (apagando as ligações nas tabelas bridge)
+    await db.execute(delete(bridge_movie_genre).where(bridge_movie_genre.c.sk_movie_id == sk_movie_id))
+    await db.execute(delete(bridge_movie_person).where(bridge_movie_person.c.sk_movie_id == sk_movie_id))
+    await db.flush()
+
+    # 4. Recadastrar os Gêneros atualizados
+    for nome_genero in movie_in.generos:
+        gen_res = await db.execute(select(DimGenre).where(DimGenre.nome_genero == nome_genero))
+        genre = gen_res.scalar_one_or_none()
+        if not genre:
+            genre = DimGenre(nome_genero=nome_genero)
+            db.add(genre)
+            await db.flush()
+        await db.execute(insert(bridge_movie_genre).values(sk_movie_id=movie.sk_movie_id, sk_genre_id=genre.sk_genre_id))
+
+    # 5. Recadastrar os Diretores atualizados
+    for nome_diretor in movie_in.diretores:
+        dir_res = await db.execute(select(DimPerson).where(DimPerson.nome_pessoa == nome_diretor, DimPerson.tipo_pessoa == 'Diretor'))
+        diretor = dir_res.scalar_one_or_none()
+        if not diretor:
+            diretor = DimPerson(nome_pessoa=nome_diretor, tipo_pessoa='Diretor')
+            db.add(diretor)
+            await db.flush()
+        await db.execute(insert(bridge_movie_person).values(sk_movie_id=movie.sk_movie_id, sk_person_id=diretor.sk_person_id))
+
+    # 6. Recadastrar os Atores atualizados
+    for nome_ator in movie_in.elenco:
+        ator_res = await db.execute(select(DimPerson).where(DimPerson.nome_pessoa == nome_ator, DimPerson.tipo_pessoa == 'Ator'))
+        ator = ator_res.scalar_one_or_none()
+        if not ator:
+            ator = DimPerson(nome_pessoa=nome_ator, tipo_pessoa='Ator')
+            db.add(ator)
+            await db.flush()
+        await db.execute(insert(bridge_movie_person).values(sk_movie_id=movie.sk_movie_id, sk_person_id=ator.sk_person_id))
+
+    # Salva tudo de uma vez
+    await db.commit()
+    
+    return {"mensagem": f"Filme '{movie.titulo}' atualizado com sucesso!"}
